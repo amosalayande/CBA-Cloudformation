@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provisioning a Custom Network for Module 7 via Cloudformation
+
+Resources:
+
+      VPC:
+        Type: AWS::EC2::VPC
+        Properties: 
+          CidrBlock: 10.0.0.0/16
+          EnableDnsHostnames: True
+          EnableDnsSupport: True
+          InstanceTenancy: default
+          Tags: 
+            - Key: Name
+              Value: new-cba-VPC
+
+      PublicSubnet01:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: eu-west-2a
+          CidrBlock: 10.0.1.0/24
+          MapPublicIpOnLaunch: true
+          Tags:
+            - Key: Name
+              Value: 10.0.1.0-eu-west-2a
+
+      PublicSubnet02:
+        Type: AWS::EC2::Subnet
+        Properties:
+          VpcId: !Ref VPC
+          AvailabilityZone: eu-west-2b
+          CidrBlock: 10.0.2.0/24
+          MapPublicIpOnLaunch: true
+          Tags:
+            - Key: Name
+              Value: 10.0.3.0-eu-west-2b
+
+      PrivateSubnet01:
+        Type: AWS::EC2::Subnet
+        Properties: 
+          AvailabilityZone: eu-west-2a
+          CidrBlock: 10.0.3.0/24
+          MapPublicIpOnLaunch: false
+          Tags:
+            - Key: Name
+              Value: 10.0.2.0-eu-west-2a
+          VpcId: !Ref VPC
+        
+      PrivateSubnet02:
+        Type: AWS::EC2::Subnet
+        Properties: 
+          AvailabilityZone: eu-west-2b
+          CidrBlock: 10.0.4.0/24
+          MapPublicIpOnLaunch: false
+          Tags:
+            - Key: Name
+              Value: 10.0.4.0-eu-west-2b
+          VpcId: !Ref VPC
+
+      PublicRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          Tags:
+            - Key: Name
+              Value: new-cba-public-RT
+          VpcId: !Ref VPC
+
+      PrivateRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          Tags:
+            - Key: Name
+              Value: new-cba-private-RT
+          VpcId: !Ref VPC
+
+      PublicRouteTableAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PublicSubnet01
+          RouteTableId: !Ref PublicRouteTable
+
+      PublicRouteTableAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PublicSubnet02
+          RouteTableId: !Ref PublicRouteTable
+      
+      PrivateRouteTableAssociation1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PrivateSubnet01
+          RouteTableId: !Ref PrivateRouteTable
+
+      PrivateRouteTableAssociation2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PrivateSubnet02
+          RouteTableId: !Ref PrivateRouteTable
+
+      ApplicationSG:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupDescription: Security Group for Application
+          GroupName: App SG
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 80
+              ToPort: 80
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 443
+              ToPort: 443
+              CidrIp: 0.0.0.0/0
+            - IpProtocol: tcp
+              FromPort: 22
+              ToPort: 22
+              CidrIp: 0.0.0.0/0
+          Tags:
+            - Key: Name
+              Value: ApplicationSG
+          VpcId: !Ref VPC
+
+      DataBSG:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+          GroupDescription: Security Group for DataB
+          GroupName: DataB SG
+          SecurityGroupIngress:
+            - IpProtocol: tcp
+              FromPort: 3306
+              ToPort: 3306
+              SourceSecurityGroupId: !Ref ApplicationSG
+          Tags:
+            - Key: Name
+              Value: DataBSG
+          VpcId: !Ref VPC
+
+      DBSubnet:
+        Type: AWS::RDS::DBSubnetGroup
+        Properties: 
+          DBSubnetGroupDescription: Private Subnet for RDS
+          DBSubnetGroupName: DB Subnet
+          SubnetIds: 
+            - !Ref PrivateSubnet01
+            - !Ref PrivateSubnet02
+
+
+
+      DBinstance: 
+        Type: AWS::RDS::DBInstance
+        Properties: 
+          DBName: cfdb
+          AllocatedStorage: 20
+          DBInstanceClass: db.t2.micro
+          Engine: MySQL
+          MasterUsername: cfdb
+          MasterUserPassword: Globaliza
+          BackupRetentionPeriod: 0
+          DBSubnetGroupName: !Ref DBSubnet
+          AvailabilityZone: eu-west-2a
+          Port: 3306
+          VPCSecurityGroups: 
+            - !GetAtt DataBSG.GroupId
+
+      NetworkAcl:
+        Type: 'AWS::EC2::NetworkAcl'
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+            - Key: Name
+              Value: new-cba-NACL
+
+      InternetGateWay:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+          Tags:
+            - Key: Name
+              Value: new-cba-IGW
+
+      InternetGateWayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+          InternetGatewayId: !Ref InternetGateWay
+          VpcId: !Ref VPC
+
+      PublicRoute:
+        Type: AWS::EC2::Route
+        Properties:
+          DestinationCidrBlock: 0.0.0.0/0
+          GatewayId: !Ref InternetGateWay
+          RouteTableId: !Ref PublicRouteTable
+

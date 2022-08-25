@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Provisioning of IAM user with appropriate permissions in line with class 5 assignments via Cloudformation
+
+Resources:
+
+  myUser1:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: ProjectManager # give a name to this user
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      LoginProfile: # specify a password for this user
+        Password: Projectmanager@33
+        PasswordResetRequired: true # make this user to set a new password on next sign-in
+      Path: '/'
+      Tags:
+        - Key: Name
+          Value: ProjectManager
+
+  myUser2:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: Developer # give a name to this user
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+      LoginProfile: # specify a password for this user
+        Password: Developer@33
+        PasswordResetRequired: true # make this user to set a new password on next sign-in
+      Path: '/'
+      Tags:
+        - Key: Name
+          Value: Developer
+
+  myUser3:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: Intern # give a name to this user
+      ManagedPolicyArns: 
+        - arn:aws:iam::179357223614:policy/iam_policy_03
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+      LoginProfile: # specify a password for this user
+        Password: Intern@33
+        PasswordResetRequired: true # make this user to set a new password on next sign-in
+      Path: '/'
+      Tags:
+        - Key: Name
+          Value: Intern
